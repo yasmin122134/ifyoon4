@@ -36,9 +36,9 @@ models = [
     'behavior_category_2_model.pkl',
     'behavior_category_3_model.pkl',
     'behavior_category_5_model.pkl',
-    'chew_model.pkl',
-    'excited_model.pkl',
-    'pant_model.pkl',
+    'growl_model.pkl',
+    'lick_model.pkl',
+    'whine_model.pkl',
     'relevance_model.pkl',
     'scared_model.pkl'
 ]
@@ -46,14 +46,15 @@ models = [
 thresholds = {
     'angry_model.pkl': 0.31,
     'anxious_model.pkl': 0.49,
-    'bark_model.pkl': 0.42,
+    'bark_model.pkl': 0.495,
     'behavior_category_2_model.pkl': 0.46,
     'behavior_category_3_model.pkl': 0.48,
     'behavior_category_5_model.pkl': 0.29,
-    'chew_model.pkl': 0.5,
-    'excited_model.pkl': 0.5,
-    'pant_model.pkl': 0.5,
-    'scared_model.pkl': 0.5
+    'growl_model.pkl': 0.484,
+    'lick_model.pkl': 0.47,
+    'whine_model.pkl': 0.494,
+    'relevance_model.pkl': 0.5,
+    'scared_model.pkl': 0.44
 }
 
 data_file = "../data/reddit_animal_emotions1.json"
@@ -69,12 +70,12 @@ def predict(post, model_path):
             raise FileNotFoundError(f"Model file not found: {model_full_path}")
             
         model = load(model_full_path)
-        # Create text input using post_content instead of body
-        text = f"{post['post_content']}"
+        # Create text input by combining title and body
+        text = f"{post['body']}"
         # Preprocess the text using the same function as during training
-        processed_text = tokenize_clean_and_stem(text)
+
         # Return prediction probability - wrap processed_text in a list
-        return model.predict_proba([text])[0,1]
+        return model.predict_proba([text])[0,1] > thresholds[model_path]
     except Exception as e:
         print(f"Error loading or using model {model_path}: {str(e)}")
         raise
@@ -87,9 +88,9 @@ os.makedirs(os.path.dirname(csv_file), exist_ok=True)
 with open(csv_file, 'w', newline='') as f:
     writer = csv.writer(f)
     # Write header using model names without '_model.pkl'
-    header = ['post_id'] + [model.replace('_model.pkl', '') for model in models]
+    header = ['title'] + [model.replace('_model.pkl', '') for model in models]
     writer.writerow(header)
-    
+
     # Cache relevance model to avoid loading it multiple times
     relevance_model_path = 'relevance_model.pkl'
     try:
@@ -106,9 +107,9 @@ with open(csv_file, 'w', newline='') as f:
     for post in data:
         try:
             # Check relevance first
-            text = f"{post['post_content']}"
+            text = f"{post['body']}"
             processed_text = tokenize_clean_and_stem(text)
-            is_relevant = relevance_model.predict_proba([text])[0,1]
+            is_relevant = relevance_model.predict_proba([text])[0,1] > thresholds[relevance_model_path]
             
             # Only process relevant posts
             if True:
