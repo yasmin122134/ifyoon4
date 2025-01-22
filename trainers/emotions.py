@@ -103,7 +103,7 @@ def main():
 
     # 1. Load the CSV
     # Adjust 'reddit_data.csv' to your actual file name/path
-    df = pd.read_csv("../data/emotions_data.csv")
+    df = pd.read_csv("../data/relevant_posts_with_categories.csv")
 
     print("Data preview:\n", df.head(), "\n")
     print("Total records:", len(df))
