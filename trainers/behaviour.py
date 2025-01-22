@@ -40,14 +40,25 @@ def tokenize_clean_and_stem(text):
             stems.append(stemmer.stem(token))
     return stems
 
-def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.9):
+def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.9, class_weight=None, min_df=0.005, ngram_range=(1,3), max_features=5000):
     X = df['body'].values
     y = df[label_col].values
 
     # Define a pipeline: TF-IDF vectorization -> Logistic Regression
     pipeline = Pipeline([
-        ('tfidf', TfidfVectorizer(tokenizer=tokenize_clean_and_stem, ngram_range=(1, 2), min_df=0.01)),
-        ('clf', LogisticRegression(penalty=penalty, C=C, random_state=42))
+        ('tfidf', TfidfVectorizer(
+            tokenizer=tokenize_clean_and_stem,
+            ngram_range=params['ngram_range'],
+            min_df=params['min_df'],
+            max_features=params['max_features']
+        )),
+        ('clf', LogisticRegression(
+            penalty='l2',
+            C=params['C'],
+            class_weight=params['class_weight'],
+            solver='liblinear',
+            random_state=42
+        ))
     ])
 
     # Leave-One-Out cross-validation
@@ -79,7 +90,7 @@ def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.9):
     plt.ylabel('True Positive Rate')
     plt.title(f'ROC Curve for {label_col} Classification')
     plt.legend(loc="lower right")
-    plt.savefig(f'{label_col}_roc_curve.png')
+    plt.savefig(f'./models/{label_col}_plot.png')
     plt.show()
     plt.close()
 
@@ -97,29 +108,61 @@ def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.9):
 
 
 def main():
-    # 1. Load the CSV
-    # Adjust 'reddit_data.csv' to your actual file name/path
-    df = pd.read_csv("../data/behavior_matrix.csv")
-
-    # Check columns exist (customize to your data)
-    # Example columns: post_text, anger_label, joy_label, relevance_label
+    # 1. Load the CSV - updated path to match project structure
+    df = pd.read_csv("../data/behaviour_data.csv")
+    
     print("Data preview:\n", df.head(), "\n")
     print("Total records:", len(df))
 
     # 2. Define which behavior labels you have
-    # If you have more behaviors, add them here
-    behavior_cols = ['bark', 'pant', 'chew']
+    behavior_cols = ['bark', 'growl', 'lick', "whine"]
 
-    # 3. Train behavior models (one per behavior) with LOO CV
+    # Create models directory if it doesn't exist
+    os.makedirs('./models', exist_ok=True)
+
+    # 3. Train behavior models
     behavior_models = {}
-    c_values = {'bark': 0.99, 'pant': 0.999999999, 'chew': 0.99}
+    # Updated parameters for all behaviors
+    model_params = {
+        'bark': {
+            'C': 0.2,
+            'min_df': 0.005,
+            'class_weight': 'balanced',
+            'max_features': 3000
+        },
+        'whine': {
+            'C': 0.1,
+            'min_df': 0.005,
+            'class_weight': 'balanced',
+            'max_features': 3000
+        },
+        'lick': {
+            'C': 0.2,
+            'min_df': 0.005,
+            'class_weight': 'balanced',
+            'max_features': 3000
+        },
+        'growl': {
+            'C': 0.15,
+            'min_df': 0.005,
+            'class_weight': 'balanced',
+            'max_features': 3000
+        }
+    }
+
     for beh in behavior_cols:
         print(f"\n--- Training model for behavior: {beh} ---")
-        model = train_and_evaluate_loo(df, label_col=beh, penalty='l2', C=c_values[beh])
+        params = model_params[beh]
+        model = train_and_evaluate_loo(
+            df,
+            label_col=beh,
+            penalty='l2',
+            **params
+        )
         behavior_models[beh] = model
 
         # Save each behavior model
-        model_filename = f"../models/{beh}_model.pkl"
+        model_filename = f"./models/{beh}_model.pkl"
         dump(model, model_filename)
         print(f"Saved {beh} model to {model_filename}")
 
