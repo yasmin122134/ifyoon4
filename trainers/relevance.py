@@ -40,14 +40,32 @@ def tokenize_clean_and_stem(text):
     return stems
 
 
-def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.9):
+def train_and_evaluate_loo(df, label_col, penalty='l2', C=1.0):
     X = df['post_content'].values
     y = df[label_col].values
 
     # Define a pipeline: TF-IDF vectorization -> Logistic Regression
     pipeline = Pipeline([
-        ('tfidf', TfidfVectorizer(tokenizer=tokenize_clean_and_stem, ngram_range=(1, 2), min_df=0.01)),
-        ('clf', LogisticRegression(penalty=penalty, C=C, random_state=42))
+        ('tfidf', TfidfVectorizer(
+            tokenizer=tokenize_clean_and_stem,
+            ngram_range=(1, 4),  # Increased to include 4-grams
+            min_df=1,  # Reduced to include rare but potentially important terms
+            max_df=0.9,  # Slightly more aggressive removal of common terms
+            max_features=15000,  # Increased vocabulary size
+            sublinear_tf=True,
+            use_idf=True,
+            smooth_idf=True,
+            norm='l2'
+        )),
+        ('clf', LogisticRegression(
+            penalty=penalty,
+            C=0.5,  # Increased regularization
+            random_state=42,
+            class_weight='balanced',
+            max_iter=2000,
+            solver='saga',  # Better for large datasets
+            n_jobs=-1  # Parallel processing
+        ))
     ])
 
     # Leave-One-Out cross-validation

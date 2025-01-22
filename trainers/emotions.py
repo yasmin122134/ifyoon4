@@ -40,15 +40,27 @@ def tokenize_clean_and_stem(text):
             stems.append(stemmer.stem(token))
     return stems
 
-def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.1):
+def train_and_evaluate_loo(df, label_col, penalty='l2', C=1.0):
     X = df['post_content'].values
     y = df[label_col].values
     print(f"Training model for {label_col}...")
 
     # Define a pipeline: TF-IDF vectorization -> Logistic Regression
     pipeline = Pipeline([
-        ('tfidf', TfidfVectorizer(tokenizer=tokenize_clean_and_stem, ngram_range=(1, 2), min_df=0.01)),
-        ('clf', LogisticRegression(penalty=penalty, C=C, random_state=42))
+        ('tfidf', TfidfVectorizer(
+            tokenizer=tokenize_clean_and_stem,
+            ngram_range=(1, 3),  # Increased to capture more context
+            min_df=0.005,        # Lowered to capture more rare but potentially important terms
+            max_df=0.95,         # Added to remove very common terms
+            max_features=5000    # Added to control vocabulary size
+        )),
+        ('clf', LogisticRegression(
+            penalty=penalty,
+            C=C,
+            random_state=42,
+            max_iter=1000,       # Added to ensure convergence
+            class_weight='balanced'  # Added to handle class imbalance
+        ))
     ])
 
     # Leave-One-Out cross-validation
@@ -80,7 +92,7 @@ def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.1):
     plt.ylabel('True Positive Rate')
     plt.title(f'ROC Curve for {label_col} Classification')
     plt.legend(loc="lower right")
-    plt.savefig(f'{label_col}_roc_curve.png')
+    plt.savefig(f'../roc/{label_col}_roc_curve.png')
     plt.show()
     plt.close()
 
@@ -98,8 +110,6 @@ def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.1):
 
 
 def main():
-    # Add this near the start of main()
-    os.makedirs('./models', exist_ok=True)
 
     # 1. Load the CSV
     # Adjust 'reddit_data.csv' to your actual file name/path
@@ -110,14 +120,43 @@ def main():
 
     # 2. Define which emotion labels you have
     # If you have more emotions, add them here
-    # emotion_cols = ['scared', 'anxious', 'angry', 'behavior_category_2', 'behavior_category_3', 'behavior_category_5']
-    emotion_cols = ['anxious']
+    emotion_cols = ['scared', 'anxious', 'angry', 'behavior_category_2', 'behavior_category_3', 'behavior_category_5']
+
+    # Updated C values - increased regularization strength for 'anxious'
+    c_values = {
+        'scared': 1.0,
+        'anxious': 0.1,  # Decreased C value to increase regularization
+        'angry': 1.0,
+        'behavior_category_2': 1.0,
+        'behavior_category_3': 1.0,
+        'behavior_category_5': 1.0
+    }
+
     # 3. Train emotion models (one per emotion) with LOO CV
     emotion_models = {}
-    c_values = {'scared': 0.99, 'anxious': 0.999, 'angry': 0.99, 'behavior_category_2': 0.99, 'behavior_category_3': 0.99, 'behavior_category_5': 0.99}
     for emo in emotion_cols:
         print(f"\n--- Training model for emotion: {emo} ---")
-        model = train_and_evaluate_loo(df, label_col=emo, penalty='l2', C=c_values[emo])
+        if emo == 'anxious':
+            # Special pipeline configuration for anxious classification
+            model = Pipeline([
+                ('tfidf', TfidfVectorizer(
+                    tokenizer=tokenize_clean_and_stem,
+                    ngram_range=(1, 2),  # Reduced to prevent overfitting
+                    min_df=0.02,         # Increased to focus on more common terms
+                    max_df=0.8,          # Stricter upper bound
+                    max_features=3000    # Reduced features
+                )),
+                ('clf', LogisticRegression(
+                    penalty='l2',
+                    C=c_values[emo],
+                    random_state=42,
+                    max_iter=1000,
+                    class_weight='balanced'
+                ))
+            ])
+            model = train_and_evaluate_loo(df, label_col=emo, penalty='l2', C=c_values[emo])
+        else:
+            model = train_and_evaluate_loo(df, label_col=emo, penalty='l2', C=c_values[emo])
         emotion_models[emo] = model
 
         # Save each emotion model
