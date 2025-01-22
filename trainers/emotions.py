@@ -110,11 +110,11 @@ def main():
 
     # 2. Define which emotion labels you have
     # If you have more emotions, add them here
-    emotion_cols = ['scared', 'anxious', 'angry', 'behavior_category_2', 'behavior_category_3', 'behavior_category_5']
-
+    # emotion_cols = ['scared', 'anxious', 'angry', 'behavior_category_2', 'behavior_category_3', 'behavior_category_5']
+    emotion_cols = ['anxious']
     # 3. Train emotion models (one per emotion) with LOO CV
     emotion_models = {}
-    c_values = {'scared': 0.99, 'anxious': 0.999999999, 'angry': 0.99, 'behavior_category_2': 0.99, 'behavior_category_3': 0.99, 'behavior_category_5': 0.99}
+    c_values = {'scared': 0.99, 'anxious': 0.999, 'angry': 0.99, 'behavior_category_2': 0.99, 'behavior_category_3': 0.99, 'behavior_category_5': 0.99}
     for emo in emotion_cols:
         print(f"\n--- Training model for emotion: {emo} ---")
         model = train_and_evaluate_loo(df, label_col=emo, penalty='l2', C=c_values[emo])
