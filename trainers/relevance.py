@@ -40,7 +40,7 @@ def tokenize_clean_and_stem(text):
     return stems
 
 
-def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.2):
+def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.9):
     X = df['post_content'].values
     y = df[label_col].values
 
@@ -80,6 +80,7 @@ def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.2):
     plt.title(f'ROC Curve for {label_col} Classification')
     plt.legend(loc="lower right")
     plt.savefig(f'{label_col}_roc_curve.png')
+    plt.show()
     plt.close()
 
     # Report results
@@ -97,7 +98,7 @@ def train_and_evaluate_loo(df, label_col, penalty='l2', C=0.2):
 def main():
     # 1. Load the CSV
     # Adjust 'reddit_data.csv' to your actual file name/path
-    df = pd.read_csv("posts_with_emotions.csv")
+    df = pd.read_csv("../data/behaviour_data.csv")
 
     # Check columns exist (customize to your data)
     # Example columns: post_text, anger_label, joy_label, relevance_label
@@ -108,7 +109,7 @@ def main():
     # If your data has a 'relevance_label' column
     if 'relevance' in df.columns:
         print("\n=== Training Relevance Model ===")
-        relevance_model = train_and_evaluate_loo(df, label_col='relevance', penalty='l2', C=0.2)
+        relevance_model = train_and_evaluate_loo(df, label_col='relevance', penalty='l2')
 
         # Save relevance model
         dump(relevance_model, "../models/relevance_model.pkl")
